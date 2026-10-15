@@ -7,7 +7,7 @@ SKU-5,Write unit and API tests (30),Task,Testing,Sprint 2,5,Done,pytest with 92%
 SKU-6,Create Dockerfile and .dockerignore,Task,Docker,Sprint 2,3,Done,Non-root user; HEALTHCHECK; gunicorn
 SKU-7,Build and run container locally,Task,Docker,Sprint 2,2,To Do,docker build; docker run -p 8000:8000
 SKU-8,Install Jenkins and plugins,Task,Jenkins,Sprint 2,3,To Do,Pipeline; Git; Docker; SonarQube; Credentials Binding
-SKU-9,Write Jenkinsfile pipeline,Story,Jenkins,Sprint 3,5,Done,11 stages from checkout to post-deploy check
+SKU-9,Write Jenkinsfile pipeline,Story,Jenkins,Sprint 3,5,Done,12 stages from checkout to post-deploy check
 SKU-10,Set up SonarQube and quality gate,Task,Security,Sprint 3,3,To Do,Server; token; sonar-project.properties
 SKU-11,Run Trivy fs and image scans,Task,Security,Sprint 3,3,To Do,Dependencies; secrets; Docker image
 SKU-12,Write Terraform for AWS,Story,Terraform,Sprint 3,5,Done,VPC; subnet; security group; EC2 with Docker
