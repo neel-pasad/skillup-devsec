@@ -1,0 +1,3 @@
+Original UI (before fix): injected <img onerror> payload executed  -> XSS = True
+Hardened UI (after fix, esc() on all user-controlled fields): payload shown as text -> XSS = False
+Method: Playwright registers a user named <img src=x onerror="window.__xss=1"> and checks window.__xss

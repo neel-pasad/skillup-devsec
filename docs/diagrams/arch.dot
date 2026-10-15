@@ -1,0 +1,14 @@
+digraph G { rankdir=TB; graph [fontname="Helvetica", pad=0.2, nodesep=0.5, ranksep=0.8, compound=true]; node [fontname="Helvetica", fontsize=12, shape=box, style="rounded,filled", fillcolor="#DDEBF7"]; edge [fontname="Helvetica", fontsize=10];
+ U [label="Users\n(Learner / Instructor / Admin)\nBrowser", shape=box, fillcolor="#FFF2CC"];
+ subgraph cluster_aws { label="AWS Cloud (region ap-south-1) - provisioned by Terraform"; style="rounded,dashed"; color="#ED7D31"; fontname="Helvetica";
+  IGW [label="Internet Gateway", fillcolor="#E2EFDA"];
+  subgraph cluster_vpc { label="VPC 10.20.0.0/16"; style=rounded; color="#2E75B6";
+   RT [label="Route Table", fillcolor="#E2EFDA"];
+   subgraph cluster_sub { label="Public subnet 10.20.1.0/24"; style=rounded; color="#70AD47";
+    SG [label="Security Group\nin: 80 (HTTP), 22 (admin IP only)\nout: 443, 80, 53 only", fillcolor="#FBE0D3"];
+    EC2 [label="EC2 t3.micro (Amazon Linux 2023)\nIMDSv2 required, encrypted EBS\n\nDocker container\nGunicorn + Flask SkillUp app\nport 8000 -> host 80", fillcolor="#FFF2CC"]; }
+  } }
+ DH [label="Docker Hub\n(image registry)", fillcolor="#E2EFDA"];
+ U -> IGW [label="HTTP :80"]; IGW -> RT -> SG -> EC2;
+ EC2 -> DH [label="docker pull\n(first boot)", style=dashed];
+}
