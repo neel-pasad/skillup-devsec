@@ -2,9 +2,31 @@ data "aws_availability_zones" "available" {
   state = "available"
 }
 
-# Latest Amazon Linux 2023 AMI (resolved from the public SSM parameter)
-data "aws_ssm_parameter" "al2023" {
-  name = "/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64"
+# Latest Ubuntu 24.04 LTS AMI (resolved from Canonical's public SSM parameter)
+data "aws_ssm_parameter" "ubuntu" {
+  name = "/aws/service/canonical/ubuntu/server/24.04/stable/current/amd64/hvm/ebs-gp3/ami-id"
+}
+
+# Lets the EC2 instance pull the image from ECR without storing any access keys on the server
+resource "aws_iam_role" "ec2_ecr_read" {
+  count = var.attach_ecr_role ? 1 : 0
+  name  = "skillup-ec2-ecr-read"
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{ Effect = "Allow", Principal = { Service = "ec2.amazonaws.com" }, Action = "sts:AssumeRole" }]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "ecr_read" {
+  count      = var.attach_ecr_role ? 1 : 0
+  role       = aws_iam_role.ec2_ecr_read[0].name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
+}
+
+resource "aws_iam_instance_profile" "ec2_ecr_read" {
+  count = var.attach_ecr_role ? 1 : 0
+  name  = "skillup-ec2-ecr-read"
+  role  = aws_iam_role.ec2_ecr_read[0].name
 }
 
 resource "aws_vpc" "main" {
@@ -99,15 +121,16 @@ resource "aws_vpc_security_group_egress_rule" "dns" {
 }
 
 resource "aws_instance" "web" {
-  ami                         = data.aws_ssm_parameter.al2023.value
+  ami                         = data.aws_ssm_parameter.ubuntu.value
+  iam_instance_profile        = var.attach_ecr_role ? aws_iam_instance_profile.ec2_ecr_read[0].name : null
   instance_type               = var.instance_type
   subnet_id                   = aws_subnet.public.id
   vpc_security_group_ids      = [aws_security_group.web.id]
   associate_public_ip_address = true
-  key_name                    = var.key_name == "" ? null : var.key_name
+  key_name                    = var.key_name
   monitoring                  = true
 
-  user_data = templatefile("${path.module}/user_data.sh", { docker_image = var.docker_image })
+  user_data = file("${path.module}/user_data.sh")
   user_data_replace_on_change = true
 
   metadata_options {

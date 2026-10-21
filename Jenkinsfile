@@ -1,19 +1,21 @@
-// SkillUp CI/CD pipeline: build -> test -> SonarQube -> Trivy -> Docker -> Terraform -> deploy
-// Jenkins prerequisites (see docs/RUNBOOK.md):
-//   Plugins : Pipeline, Git, Credentials Binding, SonarQube Scanner, Docker Pipeline, JUnit,
-//             AWS Credentials (Amazon Web Services Credentials Binding)
-//   Tools   : python3, docker, trivy, terraform, sonar-scanner on the agent (or Jenkins "Tools")
-//   Creds   : 'dockerhub-creds' (Username/Password), 'aws-creds' (AWS credentials),
-//             'sonar-token' used via the SonarQube server entry named 'sonarqube'
+// SkillUp CI/CD pipeline: test -> SonarQube -> Trivy -> Docker -> push to Amazon ECR -> Terraform (Ubuntu EC2)
+// Jenkins prerequisites (see docs/RUNBOOK.md, step 7):
+//   Plugins : Pipeline, Git, Credentials Binding, SonarQube Scanner, JUnit, AWS Credentials
+//   On the Jenkins machine (PATH): python3 + venv, docker, trivy, terraform, aws cli, sonar-scanner
+//   Creds   : 'aws-creds' (AWS Credentials: access key + secret), SonarQube server entry named 'sonarqube'
 pipeline {
   agent any
   options { timestamps(); disableConcurrentBuilds(); timeout(time: 45, unit: 'MINUTES') }
   parameters {
-    booleanParam(name: 'DEPLOY_TO_AWS', defaultValue: false, description: 'Run terraform apply and deploy to EC2')
+    booleanParam(name: 'RUN_TERRAFORM', defaultValue: false, description: 'Create the Ubuntu EC2 server with Terraform')
     string(name: 'ALLOWED_SSH_CIDR', defaultValue: '203.0.113.10/32', description: 'Your public IP /32 for SSH')
+    string(name: 'KEY_NAME', defaultValue: 'skillup-key', description: 'Existing EC2 key pair name')
   }
   environment {
-    IMAGE_NAME = 'YOUR_DOCKERHUB_USER/skillup'        // <-- change to your Docker Hub user
+    PATH       = "/opt/homebrew/bin:/usr/local/bin:${env.PATH}"   // so Jenkins finds brew-installed tools on a Mac
+    AWS_REGION = 'ap-south-1'
+    ECR_REPO   = 'skillup'
+    IMAGE_NAME = 'skillup'
     IMAGE_TAG  = "${env.BUILD_NUMBER}"
   }
   stages {
@@ -38,12 +40,8 @@ pipeline {
       }
     }
 
-    stage('SonarQube Analysis') {
-      steps {
-        withSonarQubeEnv('sonarqube') {
-          sh 'sonar-scanner'
-        }
-      }
+    stage('SonarQube Analysis (SAST)') {
+      steps { withSonarQubeEnv('sonarqube') { sh 'sonar-scanner' } }
     }
     stage('Quality Gate') {
       steps { timeout(time: 5, unit: 'MINUTES') { waitForQualityGate abortPipeline: true } }
@@ -51,18 +49,19 @@ pipeline {
 
     stage('Trivy: Dependencies, Secrets, IaC') {
       steps {
-        sh 'trivy fs --scanners vuln,secret --severity HIGH,CRITICAL --exit-code 1 --format table -o trivy-fs.txt .'
-        sh 'trivy config --severity HIGH,CRITICAL --format table -o trivy-config.txt . || true'
+        sh 'trivy fs --scanners vuln,secret --severity HIGH,CRITICAL --exit-code 1 --format table -o trivy-fs-report.txt .'
+        sh 'trivy config --severity HIGH,CRITICAL --format table -o trivy-config-report.txt . || true'
       }
     }
 
     stage('Docker Build') {
-      steps { sh 'docker build -t $IMAGE_NAME:$IMAGE_TAG -t $IMAGE_NAME:latest .' }
+      steps { sh 'docker build -t $IMAGE_NAME:$IMAGE_TAG .' }
     }
 
-    stage('Trivy: Docker Image') {
+    stage('Trivy: Docker Image Scan') {
       steps {
-        sh 'trivy image --severity HIGH,CRITICAL --exit-code 1 --format table -o trivy-image.txt $IMAGE_NAME:$IMAGE_TAG'
+        sh 'trivy image --format json -o trivy-image-report.json $IMAGE_NAME:$IMAGE_TAG'
+        sh 'trivy image --severity HIGH,CRITICAL --exit-code 1 --format table -o trivy-image-report.txt $IMAGE_NAME:$IMAGE_TAG'
       }
     }
 
@@ -78,51 +77,43 @@ pipeline {
       post { always { sh 'docker rm -f skillup-ci || true' } }
     }
 
-    stage('Push Image') {
+    stage('Push Image to Amazon ECR') {
       steps {
-        withCredentials([usernamePassword(credentialsId: 'dockerhub-creds', usernameVariable: 'DH_USER', passwordVariable: 'DH_PASS')]) {
+        withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-creds']]) {
           sh '''
-            echo "$DH_PASS" | docker login -u "$DH_USER" --password-stdin
-            docker push $IMAGE_NAME:$IMAGE_TAG
-            docker push $IMAGE_NAME:latest
-            docker logout
+            ACCOUNT=$(aws sts get-caller-identity --query Account --output text)
+            REGISTRY=$ACCOUNT.dkr.ecr.$AWS_REGION.amazonaws.com
+            aws ecr describe-repositories --repository-names $ECR_REPO --region $AWS_REGION >/dev/null 2>&1 || \
+              aws ecr create-repository --repository-name $ECR_REPO --region $AWS_REGION --image-scanning-configuration scanOnPush=true
+            aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $REGISTRY
+            docker tag $IMAGE_NAME:$IMAGE_TAG $REGISTRY/$ECR_REPO:$IMAGE_TAG
+            docker push $REGISTRY/$ECR_REPO:$IMAGE_TAG
+            echo "$REGISTRY/$ECR_REPO:$IMAGE_TAG" > ecr-image.txt
           '''
         }
       }
     }
 
-    stage('Terraform: Provision AWS') {
-      when { expression { params.DEPLOY_TO_AWS } }
+    stage('Terraform: Create Ubuntu EC2') {
+      when { expression { params.RUN_TERRAFORM } }
       steps {
         withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-creds']]) {
           dir('terraform') {
             sh '''
               terraform init -input=false
               terraform validate
-              terraform plan -input=false -out=tfplan \
-                -var "docker_image=$IMAGE_NAME:$IMAGE_TAG" -var "allowed_ssh_cidr=${ALLOWED_SSH_CIDR}"
+              terraform plan -input=false -out=tfplan -var "allowed_ssh_cidr=${ALLOWED_SSH_CIDR}" -var "key_name=${KEY_NAME}"
               terraform apply -input=false -auto-approve tfplan
-              terraform output -raw website_url > ../website_url.txt
+              terraform output
             '''
           }
         }
       }
     }
-
-    stage('Post-Deploy Check') {
-      when { expression { params.DEPLOY_TO_AWS } }
-      steps {
-        sh '''
-          URL=$(cat website_url.txt)
-          for i in $(seq 1 30); do curl -fs "$URL/health" && break || sleep 10; done
-          curl -fs "$URL/health" | grep '"status":"ok"'
-        '''
-      }
-    }
   }
   post {
-    always { archiveArtifacts artifacts: '*.txt, coverage.xml, test-results.xml', allowEmptyArchive: true }
-    success { echo 'Pipeline succeeded' }
-    failure { echo 'Pipeline failed: check the stage that turned red (tests, quality gate or a security scan)' }
+    always { archiveArtifacts artifacts: '*.txt, *.json, coverage.xml, test-results.xml', allowEmptyArchive: true }
+    success { echo 'Pipeline succeeded. Next: SSH to the EC2 and run the image with the docker CLI (RUNBOOK step 9).' }
+    failure { echo 'Pipeline failed: check the red stage (tests, quality gate or a security scan)' }
   }
 }

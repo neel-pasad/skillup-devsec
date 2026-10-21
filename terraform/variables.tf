@@ -4,11 +4,6 @@ variable "aws_region" {
   default     = "ap-south-1"
 }
 
-variable "docker_image" {
-  description = "Docker image to run, e.g. youruser/skillup:5"
-  type        = string
-}
-
 variable "allowed_ssh_cidr" {
   description = "Your public IP in CIDR form (x.x.x.x/32) allowed to SSH. Never use 0.0.0.0/0."
   type        = string
@@ -25,7 +20,12 @@ variable "instance_type" {
 }
 
 variable "key_name" {
-  description = "Existing EC2 key pair name for SSH (leave empty to disable SSH access)"
+  description = "Name of an EXISTING EC2 key pair (create it in the console: EC2 > Key pairs). Needed to SSH in."
   type        = string
-  default     = ""
+}
+
+variable "attach_ecr_role" {
+  description = "Attach an IAM role so the instance can pull from ECR. Set false if your lab account blocks IAM, then use aws configure on the server."
+  type        = bool
+  default     = true
 }
