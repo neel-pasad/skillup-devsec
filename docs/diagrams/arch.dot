@@ -6,9 +6,9 @@ digraph G { rankdir=TB; graph [fontname="Helvetica", pad=0.2, nodesep=0.5, ranks
    RT [label="Route Table", fillcolor="#E2EFDA"];
    subgraph cluster_sub { label="Public subnet 10.20.1.0/24"; style=rounded; color="#70AD47";
     SG [label="Security Group\nin: 80 (HTTP), 22 (admin IP only)\nout: 443, 80, 53 only", fillcolor="#FBE0D3"];
-    EC2 [label="EC2 t3.micro (Amazon Linux 2023)\nIMDSv2 required, encrypted EBS\n\nDocker container\nGunicorn + Flask SkillUp app\nport 8000 -> host 80", fillcolor="#FFF2CC"]; }
+    EC2 [label="EC2 t3.micro (Ubuntu 24.04)\nIMDSv2 required, encrypted EBS\n\nDocker container\nGunicorn + Flask SkillUp app\nport 8000 -> host 80", fillcolor="#FFF2CC"]; }
   } }
- DH [label="Docker Hub\n(image registry)", fillcolor="#E2EFDA"];
+ DH [label="Amazon ECR\n(image registry)", fillcolor="#E2EFDA"];
  U -> IGW [label="HTTP :80"]; IGW -> RT -> SG -> EC2;
- EC2 -> DH [label="docker pull\n(first boot)", style=dashed];
+ EC2 -> DH [label="docker pull\n(docker CLI on EC2)", style=dashed];
 }

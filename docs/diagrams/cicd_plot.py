@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 from matplotlib.patches import FancyBboxPatch
 steps=[("1 Checkout","git clone","#DDEBF7"),("2 Install & Test","pytest + coverage","#DDEBF7"),("3 Bandit","static code analysis","#FBE0D3"),("4 SonarQube","scan + quality gate","#FBE0D3"),
 ("5 Trivy (fs)","deps, secrets, IaC","#FBE0D3"),("6 Docker Build","docker build","#DDEBF7"),("7 Trivy (image)","scan built image","#FBE0D3"),("8 Smoke Test","run + GET /health","#DDEBF7"),
-("9 Push Image","to Docker Hub","#DDEBF7"),("10 Terraform","init / plan / apply","#E2EFDA"),("11 Post-Deploy","curl /health on EC2","#E2EFDA")]
+("9 Push Image","to Amazon ECR","#DDEBF7"),("10 Terraform","creates Ubuntu EC2","#E2EFDA"),("11 Run on EC2","docker CLI pull + run","#E2EFDA")]
 fig,ax=plt.subplots(figsize=(10,6)); ax.set_xlim(0,10); ax.set_ylim(0,6.2); ax.axis("off")
 pos=[]
 for i,(t,s,c) in enumerate(steps):
@@ -16,5 +16,5 @@ for i in range(len(steps)-1):
         a,b=(x1+2.0,x2) if x2>x1 else (x1,x2+2.0); ax.annotate("",xy=(b,y2+0.5),xytext=(a,y1+0.5),arrowprops=dict(arrowstyle="-|>",lw=1.4))
     else: ax.annotate("",xy=(x2+1,y2+1.0),xytext=(x1+1,y1),arrowprops=dict(arrowstyle="-|>",lw=1.4))
 ax.text(0.35,5.75,"Developer git push -> GitHub -> Jenkins (Jenkinsfile) triggers the pipeline",fontsize=10,style="italic")
-ax.text(0.35,0.25,"Red = security gates (fail the build)   |   Green = AWS deployment stages (only when DEPLOY_TO_AWS = true)",fontsize=9)
+ax.text(0.35,0.25,"Red = security gates (fail the build)   |   Green = AWS stages (Terraform only when RUN_TERRAFORM = true; step 11 is done by hand)",fontsize=9)
 plt.tight_layout(); plt.savefig("cicd_pipeline.png",dpi=150)
