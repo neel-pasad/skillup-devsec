@@ -1,0 +1,18 @@
+Issue Key,Summary,Issue Type,Epic,Sprint,Story Points,Status,Description
+SKU-1,Set up GitHub repository and branching,Task,Version Control,Sprint 1,2,Done,Create repo; main + dev branches; .gitignore; first commit
+SKU-2,Refactor SEP prototype into app package,Task,Website,Sprint 1,3,Done,Move skillup.py into app/ and add Flask server
+SKU-3,Harden web UI against XSS,Bug,Website,Sprint 1,3,Done,Escape all user-controlled output; verify with injection test
+SKU-4,Add security headers and input validation,Story,Website,Sprint 1,3,Done,CSP; X-Frame-Options; length and size limits
+SKU-5,Write unit and API tests (30),Task,Testing,Sprint 2,5,Done,pytest with 92% coverage
+SKU-6,Create Dockerfile and .dockerignore,Task,Docker,Sprint 2,3,Done,Non-root user; HEALTHCHECK; gunicorn
+SKU-7,Build and run container locally,Task,Docker,Sprint 2,2,To Do,docker build; docker run -p 8000:8000
+SKU-8,Install Jenkins and plugins,Task,Jenkins,Sprint 2,3,To Do,Pipeline; Git; Docker; SonarQube; Credentials Binding
+SKU-9,Write Jenkinsfile pipeline,Story,Jenkins,Sprint 3,5,Done,12 stages from checkout to post-deploy check
+SKU-10,Set up SonarQube and quality gate,Task,Security,Sprint 3,3,To Do,Server; token; sonar-project.properties
+SKU-11,Run Trivy fs and image scans,Task,Security,Sprint 3,3,To Do,Dependencies; secrets; Docker image
+SKU-12,Write Terraform for AWS,Story,Terraform,Sprint 3,5,Done,VPC; subnet; security group; EC2 with Docker
+SKU-13,terraform plan/apply and verify website,Task,Terraform,Sprint 4,3,To Do,Deploy to EC2; open public IP
+SKU-14,Draw architecture and CI/CD diagrams,Task,Documentation,Sprint 4,2,Done,Architecture and pipeline diagrams
+SKU-15,Write vulnerability report,Task,Security,Sprint 4,3,Done,Findings; severity; threats; fixes
+SKU-16,Record demo video and post on LinkedIn,Task,Documentation,Sprint 4,3,To Do,Website; Docker; Jenkins; Terraform; scans
+SKU-17,Final report and PPT,Task,Documentation,Sprint 4,5,Done,As per submission format

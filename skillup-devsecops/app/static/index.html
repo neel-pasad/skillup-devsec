@@ -1,0 +1,100 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><title>SkillUp</title>
+<style>
+*{box-sizing:border-box}body{margin:0;font:15px/1.4 "Segoe UI",Arial,sans-serif;background:#f3f6fa;color:#1f2937}
+header{background:#1f4e79;color:#fff;display:flex;align-items:center;gap:16px;padding:10px 22px}
+header h1{font-size:22px;margin:0;flex:1}header h1 small{font-weight:400;font-size:12px;opacity:.8;margin-left:8px}
+select,input,textarea,button{font:inherit}select,input,textarea{padding:6px 8px;border:1px solid #c5ced9;border-radius:6px;width:100%}
+button{background:#2e75b6;color:#fff;border:0;border-radius:6px;padding:7px 14px;cursor:pointer}button.alt{background:#70ad47}button.warn{background:#ed7d31}button.ghost{background:#e5ebf2;color:#1f2937}
+header select{width:auto;min-width:210px}header button{background:#fff;color:#1f4e79}
+.wrap{display:flex;gap:16px;padding:16px 22px;height:calc(100vh - 56px)}main{flex:1;overflow:auto;padding-right:6px}
+aside{width:300px;background:#fff;border-radius:10px;padding:12px;overflow:auto;box-shadow:0 1px 4px #0002}aside h3{margin:0 0 8px;font-size:14px;color:#1f4e79}
+.tabs{display:flex;gap:6px;margin-bottom:12px}.tabs button{background:#e5ebf2;color:#1f2937}.tabs button.on{background:#1f4e79;color:#fff}
+.card{background:#fff;border-radius:10px;padding:14px;margin-bottom:12px;box-shadow:0 1px 4px #0002}.row{display:flex;gap:10px;align-items:center}.grow{flex:1}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}label{font-size:12px;color:#51606f;display:block;margin:6px 0 2px}
+.chip{display:inline-block;background:#ddebf7;color:#1f4e79;border-radius:10px;padding:1px 9px;font-size:12px;margin-right:6px}
+.chip.g{background:#e2efda;color:#375623}.chip.o{background:#fff2cc;color:#7f6000}.chip.r{background:#fbe0d3;color:#843c0c}
+.bar{height:12px;background:#e5ebf2;border-radius:6px;overflow:hidden;margin:6px 0}.bar i{display:block;height:100%;background:#70ad47;transition:width .6s}
+.lesson{display:flex;align-items:center;gap:10px;padding:5px 0;border-bottom:1px solid #eef2f6}.done{color:#70ad47;font-weight:600}
+.modal{position:fixed;inset:0;background:#0006;display:flex;align-items:center;justify-content:center;z-index:50}.modal>div{background:#fff;border-radius:12px;padding:20px;width:480px;max-height:90vh;overflow:auto}
+.cert{border:4px double #c9a227;border-radius:10px;padding:16px;text-align:center;background:#fffdf3;margin-top:10px}.cert b{font-size:20px;color:#7f6000}
+table{width:100%;border-collapse:collapse}th,td{padding:7px;border-bottom:1px solid #e5ebf2;text-align:left}th{background:#ddebf7}
+.log{font-size:12px;border-left:3px solid #70ad47;padding:3px 8px;margin-bottom:6px;background:#f7faf5}.log.err{border-color:#ed7d31;background:#fdf6f0}.log b{display:block;color:#1f4e79}
+#toast{position:fixed;top:70px;right:24px;z-index:99;display:flex;flex-direction:column;gap:8px}#toast div{padding:10px 16px;border-radius:8px;color:#fff;box-shadow:0 2px 8px #0004;max-width:360px}
+#cur{position:fixed;width:18px;height:18px;border:3px solid #ed7d31;border-radius:50%;pointer-events:none;z-index:200;left:-50px;top:-50px;transition:transform .1s}#cur.dn{transform:scale(.6);background:#ed7d3166}
+#cap{position:fixed;left:0;right:0;bottom:0;background:#000b;color:#fff;text-align:center;padding:12px 60px;font-size:20px;z-index:150;display:none}
+</style></head><body>
+<header><h1>SkillUp<small>Online Skill Development Platform</small></h1><span>Acting as:</span><select id="who" onchange="switchUser(+this.value)"></select><button id="regbtn" onclick="regModal()">+ Register</button></header>
+<div class="wrap"><main id="main"></main><aside><h3>Process trace (DFD processes)</h3><div id="log"></div></aside></div>
+<div id="toast"></div><div id="cur"></div><div id="cap"></div><div id="modal"></div>
+<script>
+let S={users:[],courses:[],enrollments:[]},uid=1,tab={},PROC={register:"1.0 Manage Users",create_course:"2.0 Manage Courses",submit:"2.0 Manage Courses",approve:"2.0 Manage Courses",enroll:"3.0 Enrol & Payment",lesson:"4.0 Content & Progress",quiz:"5.0 Assessment",cert:"6.0 Certificate",rate:"6.0 Feedback",report:"6.0 Reports"};
+const esc=s=>String(s).replace(/[&<>"']/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[ch]));
+const $=id=>document.getElementById(id),me=()=>S.users.find(u=>u.uid===uid),course=id=>S.courses.find(c=>c.cid===id);
+async function api(a,b,okmsg){const r=await (await fetch("/api/"+a,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(b)})).json();S=r.state;
+ const l=document.createElement("div");l.className="log"+(r.ok?"":" err");l.innerHTML=`<b>${PROC[a]}</b>${esc(r.ok?(okmsg||"done"):r.error)}`;$("log").prepend(l);
+ toast(r.ok?(okmsg||"Done"):"Rejected: "+r.error,r.ok);render();return r}
+function toast(t,ok){const d=document.createElement("div");d.style.background=ok?"#548235":"#c55a11";d.textContent=t;$("toast").append(d);setTimeout(()=>d.remove(),3800)}
+function fill(){$("who").innerHTML=S.users.map(u=>`<option value="${u.uid}" ${u.uid===uid?"selected":""}>${esc(u.name)} [${u.role}]</option>`).join("")}
+function switchUser(i){uid=i;render()}
+const TABS={learner:["Catalogue","My Learning"],instructor:["Create Course","My Courses & Analytics"],admin:["Approvals"]};
+function render(){fill();const u=me(),t=tab[u.role]||TABS[u.role][0];
+ let h=`<div class="tabs">${TABS[u.role].map(x=>`<button id="tab-${x.split(" ")[0]}" class="${x===t?"on":""}" onclick="setTab('${x}')">${x}</button>`).join("")}</div>`;
+ h+=({"Catalogue":catalogue,"My Learning":mylearning,"Create Course":createForm,"My Courses & Analytics":mycourses,"Approvals":approvals})[t]();
+ const keep=document.activeElement&&document.activeElement.id,main=$("main"),st=main.scrollTop;main.innerHTML=h;main.scrollTop=st;if(window._q!=null&&$("q"))$("q").value=window._q}
+function setTab(t){tab[me().role]=t;render()}
+function catalogue(){const q=(window._q||"").toLowerCase(),rec=recs();
+ let list=S.courses.filter(c=>c.status==="published"&&(c.title+c.tag).toLowerCase().includes(q));
+ return `<div class="card row"><input id="q" placeholder="Search courses by title or skill (e.g. python)" oninput="window._q=this.value;render();$('q').focus()"></div>`+
+ (rec.length&&!q?`<h3>Recommended for you</h3>`+rec.map(c=>cc(c,true)).join("")+`<h3>All courses</h3>`:"")+list.map(c=>cc(c)).join("")||"<p>No courses found.</p>"}
+function recs(){const mine=S.enrollments.filter(e=>e.learner_id===uid&&e.state!=="cancelled").map(e=>e.cid),tags=new Set(mine.map(i=>course(i).tag));
+ return S.courses.filter(c=>c.status==="published"&&tags.has(c.tag)&&!mine.includes(c.cid)).sort((a,b)=>b.rating-a.rating)}
+function cc(c,r){const en=S.enrollments.find(e=>e.learner_id===uid&&e.cid===c.cid&&e.state!=="cancelled");
+ return `<div class="card row" id="course-${c.cid}"><div class="grow"><b>${esc(c.title)}</b> ${r?'<span class="chip o">recommended</span>':""}<br><span class="chip">${esc(c.tag)}</span><span class="chip g">${c.price?"₹"+c.price:"Free"}</span>${c.prereq?`<span class="chip r">needs: ${esc(c.prereq)}</span>`:""}<span class="chip">★ ${c.rating||"–"}</span><br><small>by ${esc(c.instructor)} · ${c.lessons.length} lessons + quiz</small></div>
+ ${en?`<span class="chip g">enrolled</span>`:`<button id="enroll-${c.cid}" onclick="enrolModal(${c.cid})">Enrol</button>`}</div>`}
+function enrolModal(cid){const c=course(cid);$("modal").innerHTML=`<div class="modal"><div><h3>Enrol: ${esc(c.title)}</h3><p>Price: <b>${c.price?"₹"+c.price:"Free"}</b></p>
+ <div class="card" style="background:#f7faff"><b>Payment Gateway (simulated)</b><label>Amount to pay (₹)</label><input id="pay" type="number" placeholder="0"></div>
+ <div class="row"><button class="ghost" onclick="closeM()">Cancel</button><div class="grow"></div><button id="paybtn" onclick="doEnrol(${cid})">Pay & Enrol</button></div></div></div>`}
+function closeM(){$("modal").innerHTML=""}
+async function doEnrol(cid){const p=+$("pay").value;closeM();await api("enroll",{uid,cid,payment:p},"Enrolled in "+course(cid).title+(p?` (paid ₹${p})`:""))}
+function mylearning(){const es=S.enrollments.filter(e=>e.learner_id===uid&&e.state!=="cancelled");if(!es.length)return "<div class='card'>You have not enrolled in any course yet.</div>";
+ return es.map(e=>{const c=course(e.cid),fin=e.state==="completed"||e.state==="certified";
+ return `<div class="card" id="enr-${e.eid}"><div class="row"><b class="grow">${esc(c.title)}</b><span class="chip ${fin?"g":"o"}">${e.state}</span></div>
+ <div class="bar"><i style="width:${e.progress}%"></i></div><small>Progress ${e.progress}% · best quiz score: ${e.score==null?"–":e.score+"%"} (pass mark 60%)</small>
+ ${c.lessons.map((l,i)=>`<div class="lesson"><span class="grow">${i+1}. ${esc(l)}</span>${e.done.includes(i)?'<span class="done">✔ done</span>':`<button id="lesson-${e.eid}-${i}" onclick="api('lesson',{eid:${e.eid},i:${i}},'Lesson ${i+1} completed')">Mark complete</button>`}</div>`).join("")}
+ <div class="row" style="margin-top:10px"><button id="quizbtn-${e.eid}" class="warn" onclick="quizModal(${e.eid})">Take quiz</button>
+ ${e.state==="completed"?`<button id="certbtn-${e.eid}" class="alt" onclick="api('cert',{eid:${e.eid}},'Certificate issued')">Get certificate</button>`:""}
+ ${fin?`<span>Rate: ${[1,2,3,4,5].map(s=>`<button class="ghost" id="star-${e.eid}-${s}" onclick="api('rate',{eid:${e.eid},stars:${s}},'Thanks for rating ${s}★')">${s}★</button>`).join(" ")}</span>`:""}</div>
+ ${e.cert?`<div class="cert" id="cert-${e.eid}">🎓 <b>Certificate of Completion</b><br>${esc(me().name)} has completed <b>${esc(c.title)}</b><br><small>Certificate code: ${e.cert}</small></div>`:""}</div>`}).join("")}
+function quizModal(eid){const e=S.enrollments.find(x=>x.eid===eid),c=course(e.cid);
+ $("modal").innerHTML=`<div class="modal"><div><h3>Quiz: ${esc(c.title)}</h3>${c.quiz.map((q,qi)=>`<p><b>Q${qi+1}. ${esc(q.text)}</b></p>${q.options.map((o,oi)=>`<label style="font-size:15px;color:#1f2937"><input type="radio" style="width:auto" name="q${qi}" id="opt-${qi}-${oi}" value="${oi}"> ${esc(o)}</label>`).join("")}`).join("")}
+ <div class="row" style="margin-top:14px"><button class="ghost" onclick="closeM()">Close</button><div class="grow"></div><button id="quizsubmit" onclick="doQuiz(${eid})">Submit answers</button></div><div id="qres"></div></div></div>`}
+async function doQuiz(eid){const c=course(S.enrollments.find(x=>x.eid===eid).cid),ans=c.quiz.map((q,i)=>{const r=document.querySelector(`input[name=q${i}]:checked`);return r?+r.value:-1});
+ const r=await api("quiz",{eid,answers:ans},"Quiz submitted");if(r.ok){const pass=r.result>=60;$("qres").innerHTML=`<div class="card" style="margin-top:10px;background:${pass?"#e2efda":"#fbe0d3"}"><b>Score: ${r.result}% — ${pass?"PASSED ✔":"Below pass mark (60%). Retry!"}</b></div>`}}
+function createForm(){const pre=S.courses.filter(c=>c.status==="published");return `<div class="card"><h3 style="margin-top:0">Create a new course</h3>
+ <div class="grid2"><div><label>Title</label><input id="f-title"></div><div><label>Skill tag</label><input id="f-tag"></div><div><label>Price (₹, 0 = free)</label><input id="f-price" type="number" value="0"></div>
+ <div><label>Prerequisite</label><select id="f-pre"><option value="">None</option>${pre.map(c=>`<option value="${c.cid}">${esc(c.title)}</option>`).join("")}</select></div></div>
+ <label>Lessons (one per line)</label><textarea id="f-les" rows="3"></textarea>
+ <div class="grid2"><div><label>Quiz Q1 text</label><input id="f-q1"></div><div><label>Q1 options (comma-separated) · correct option no.</label><div class="row"><input id="f-o1"><input id="f-a1" type="number" value="1" style="width:70px"></div></div>
+ <div><label>Quiz Q2 text</label><input id="f-q2"></div><div><label>Q2 options · correct option no.</label><div class="row"><input id="f-o2"><input id="f-a2" type="number" value="1" style="width:70px"></div></div></div>
+ <div class="row" style="margin-top:12px"><button id="createbtn" onclick="doCreate()">Create course</button></div></div>`}
+async function doCreate(){const g=i=>$(i).value,q=(t,o,a)=>({text:g(t),options:g(o).split(",").map(s=>s.trim()),answer:+g(a)-1});
+ const r=await api("create_course",{uid,title:g("f-title"),tag:g("f-tag"),price:+g("f-price"),prereq:g("f-pre")?+g("f-pre"):null,lessons:g("f-les").split("\n").filter(x=>x.trim()),quiz:[q("f-q1","f-o1","f-a1"),q("f-q2","f-o2","f-a2")]},"Course created (draft)");
+ if(r.ok)setTab("My Courses & Analytics")}
+function mycoursesHtml(rep){const mine=S.courses.filter(c=>c.instructor_id===uid);
+ return mine.map(c=>`<div class="card row"><div class="grow"><b>${esc(c.title)}</b> <span class="chip ${c.status==="published"?"g":"o"}">${c.status}</span><br><small>${c.lessons.length} lessons · ${c.price?"₹"+c.price:"Free"}</small></div>
+ ${c.status==="draft"?`<button id="submit-${c.cid}" onclick="api('submit',{cid:${c.cid}},'Submitted for admin approval')">Submit for approval</button>`:""}</div>`).join("")+
+ `<div class="card"><div class="row"><h3 class="grow" style="margin:0">Learner analytics</h3><button id="repbtn" onclick="loadReport()">Refresh report</button></div><div id="rep"></div></div>`}
+function mycourses(){setTimeout(()=>{if($("rep"))showRep()},0);return mycoursesHtml()}
+async function loadReport(){await api("report",{uid},"Instructor report generated");}
+async function showRep(){const r=await (await fetch("/api/report",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({uid})})).json();
+ if($("rep"))$("rep").innerHTML=`<table id="reptable"><tr><th>Course</th><th>Learners</th><th>Completed</th><th>Revenue</th><th>Rating</th></tr>${r.result.map(x=>`<tr><td>${esc(x.course)}</td><td>${x.learners}</td><td>${x.completed}</td><td>₹${x.revenue}</td><td>${x.rating||"–"}</td></tr>`).join("")}</table>`}
+function approvals(){const p=S.courses.filter(c=>c.status==="pending");return `<div class="card"><h3 style="margin-top:0">Courses awaiting approval</h3>${p.length?p.map(c=>`<div class="row" style="padding:6px 0"><div class="grow"><b>${esc(c.title)}</b><br><small>by ${esc(c.instructor)} · ${c.lessons.length} lessons · ${c.quiz.length} quiz questions</small></div><button id="approve-${c.cid}" class="alt" onclick="api('approve',{uid,cid:${c.cid}},'Course approved and published')">Approve</button></div>`).join(""):"<p>Nothing pending.</p>"}</div>
+ <div class="card"><h3 style="margin-top:0">Platform summary</h3>Users: ${S.users.length} · Published courses: ${S.courses.filter(c=>c.status==="published").length} · Enrolments: ${S.enrollments.length}</div>`}
+function regModal(){$("modal").innerHTML=`<div class="modal"><div><h3>Register a new user</h3><label>Name</label><input id="r-name"><label>Email</label><input id="r-mail"><label>Role</label><select id="r-role"><option>learner</option><option>instructor</option></select>
+ <div class="row" style="margin-top:14px"><button class="ghost" onclick="closeM()">Cancel</button><div class="grow"></div><button id="regsubmit" onclick="doReg()">Register</button></div></div></div>`}
+async function doReg(){const r=await api("register",{name:$("r-name").value,email:$("r-mail").value,role:$("r-role").value},"Registered "+$("r-name").value);closeM();if(r.ok){uid=r.result;render()}}
+document.addEventListener("mousemove",e=>{$("cur").style.left=e.clientX-9+"px";$("cur").style.top=e.clientY-9+"px"});
+document.addEventListener("mousedown",()=>$("cur").classList.add("dn"));document.addEventListener("mouseup",()=>$("cur").classList.remove("dn"));
+function caption(t){const c=$("cap");c.style.display=t?"block":"none";c.textContent=t||""}
+(async()=>{S=await (await fetch("/api/state")).json();uid=1;render()})();
+</script></body></html>

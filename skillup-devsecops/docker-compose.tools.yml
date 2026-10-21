@@ -1,0 +1,12 @@
+# Optional helper to run SonarQube locally (UNTESTED here - verify on your machine).
+# Start:  docker compose -f docker-compose.tools.yml up -d      Open: http://localhost:9000  (first login admin/admin, change it)
+services:
+  sonarqube:
+    image: sonarqube:community
+    ports: ["9000:9000"]
+    environment:
+      SONAR_ES_BOOTSTRAP_CHECKS_DISABLE: "true"
+    volumes:
+      - sonar_data:/opt/sonarqube/data
+volumes:
+  sonar_data:

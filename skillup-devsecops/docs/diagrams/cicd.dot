@@ -1,0 +1,13 @@
+digraph G { rankdir=TB; graph [fontname="Helvetica", pad=0.2, nodesep=0.4, ranksep=0.55]; node [fontname="Helvetica", fontsize=14, shape=box, style="rounded,filled", fillcolor="#DDEBF7"]; edge [fontname="Helvetica", fontsize=12];
+ Dev [label="Developer\ngit push", fillcolor="#FFF2CC"]; GH [label="GitHub\nrepository", fillcolor="#E2EFDA"];
+ subgraph cluster_j { label="Jenkins pipeline (Jenkinsfile)"; style=rounded; color="#2E75B6"; fontname="Helvetica";
+  s1 [label="1 Checkout"]; s2 [label="2 Install &\nunit tests\n(pytest)"]; s3 [label="3 Bandit\nstatic analysis", fillcolor="#FBE0D3"]; s4 [label="4 SonarQube\nscan + quality gate", fillcolor="#FBE0D3"]; s5 [label="5 Trivy fs\ndeps, secrets, IaC", fillcolor="#FBE0D3"];
+  s6 [label="6 Docker\nbuild"]; s7 [label="7 Trivy\nimage scan", fillcolor="#FBE0D3"]; s8 [label="8 Smoke test\n/health"]; s9 [label="9 Push image"]; s10 [label="10 Terraform\ninit/validate/plan/apply"]; s11 [label="11 Post-deploy\nhealth check"]; }
+ DH [label="Docker Hub", fillcolor="#E2EFDA"]; AWS [label="AWS EC2\nrunning website", fillcolor="#FFF2CC"];
+ {rank=same; Dev; GH}
+ {rank=same; s1; s2; s3; s4}
+ {rank=same; s5; s6; s7; s8}
+ {rank=same; s9; s10; s11}
+ {rank=same; DH; AWS}
+ Dev -> GH -> s1 [label="webhook / poll"]; s1->s2->s3->s4->s5->s6->s7->s8->s9->s10->s11; s9 -> DH; s10 -> AWS [label="provision"]; DH -> AWS [label="pull image", style=dashed]; s11 -> AWS [style=dotted, label="curl /health"];
+}

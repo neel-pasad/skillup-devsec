@@ -1,0 +1,41 @@
+2026-10-15T05:32:45Z	ERROR	[misconfig] Falling back to embedded checks	err="failed to check cache: cache does not exist at \"/root/.cache/trivy/policy/content\""
+
+Report Summary
+
+┌───────────────────┬────────────┬───────────────────┐
+│      Target       │    Type    │ Misconfigurations │
+├───────────────────┼────────────┼───────────────────┤
+│ Dockerfile        │ dockerfile │         0         │
+├───────────────────┼────────────┼───────────────────┤
+│ terraform         │ terraform  │         0         │
+├───────────────────┼────────────┼───────────────────┤
+│ terraform/main.tf │ terraform  │         1         │
+└───────────────────┴────────────┴───────────────────┘
+Legend:
+- '-': Not scanned
+- '0': Clean (no security findings detected)
+
+
+terraform/main.tf (terraform)
+=============================
+Tests: 1 (SUCCESSES: 0, FAILURES: 1)
+Failures: 1 (UNKNOWN: 0, LOW: 0, MEDIUM: 1, HIGH: 0, CRITICAL: 0)
+
+AWS-0178 (MEDIUM): VPC does not have VPC Flow Logs enabled.
+════════════════════════════════════════
+VPC Flow Logs provide visibility into network traffic that traverses the VPC and can be used to detect anomalous traffic or insight during security workflows.
+
+
+See https://avd.aquasec.com/misconfig/aws-0178
+────────────────────────────────────────
+ terraform/main.tf:10-15
+────────────────────────────────────────
+  10 ┌ resource "aws_vpc" "main" {
+  11 │   cidr_block           = "10.20.0.0/16"
+  12 │   enable_dns_support   = true
+  13 │   enable_dns_hostnames = true
+  14 │   tags                 = { Name = "skillup-vpc" }
+  15 └ }
+────────────────────────────────────────
+
+
